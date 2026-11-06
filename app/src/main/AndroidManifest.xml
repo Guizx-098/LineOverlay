@@ -29,5 +29,14 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Linha visual flutuante sobre outros aplicativos" />
         </service>
+    
+        <service
+            android:name=".PoolService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Auxilio de mira sobreposto a jogo de sinuca offline" />
+        </service>
     </application>
 </manifest>

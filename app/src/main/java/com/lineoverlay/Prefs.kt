@@ -17,4 +17,8 @@ object Prefs {
 
     fun setState(c: Context, cx: Int, cy: Int, angDeg: Float, len: Float) =
         p(c).edit().putInt("cx", cx).putInt("cy", cy).putFloat("ang", angDeg).putFloat("len", len).apply()
+
+    // calibração da sinuca: "x,y,r;x,y,r;...;raioBola"
+    fun pool(c: Context): String = p(c).getString("pool", "") ?: ""
+    fun setPool(c: Context, v: String) = p(c).edit().putString("pool", v).apply()
 }

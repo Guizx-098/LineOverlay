@@ -61,6 +61,9 @@ class MainActivity : Activity() {
 
         root.addView(button("ATIVAR LINHA", true) { activate() }, btnParams())
         root.addView(button("DESATIVAR", false) { deactivate() }, btnParams())
+        root.addView(button("ATIVAR SINUCA", true) { startPool(null) }, btnParams())
+        root.addView(button("CALIBRAR CAÇAPAS", false) { startPool(PoolService.ACTION_CALIBRATE) }, btnParams())
+        root.addView(button("DESATIVAR SINUCA", false) { stopService(Intent(this, PoolService::class.java)) }, btnParams())
 
         root.addView(TextView(this).apply {
             text = "COMPRIMENTO"
@@ -88,7 +91,7 @@ class MainActivity : Activity() {
         }
         root.addView(seek, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
 
-        setContentView(root)
+        setContentView(ScrollView(this).apply { setBackgroundColor(Color.parseColor("#0B0B0B")); isFillViewport = true; addView(root) })
     }
 
     private fun btnParams() = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(54)).apply { bottomMargin = dp(14) }
@@ -119,6 +122,14 @@ class MainActivity : Activity() {
         }
         startForegroundService(Intent(this, LineService::class.java))
         handler.postDelayed({ refresh() }, 300)
+    }
+
+    private fun startPool(action: String?) {
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        startForegroundService(Intent(this, PoolService::class.java).apply { if (action != null) setAction(action) })
     }
 
     private fun deactivate() {
