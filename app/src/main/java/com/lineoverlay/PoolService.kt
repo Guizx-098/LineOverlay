@@ -31,6 +31,7 @@ class PoolService : Service() {
     private lateinit var wm: WindowManager
     private var canvasView: PoolView? = null
     private var button: TextView? = null
+    private var calibrateButton: TextView? = null
     private lateinit var canvasLp: WindowManager.LayoutParams
     private lateinit var btnLp: WindowManager.LayoutParams
 
@@ -120,41 +121,80 @@ class PoolService : Service() {
         wm.addView(cv, canvasLp)
 
         val size = (56 * density).toInt()
-        btnLp = params(size, size, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        val buttonFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+
+        // Botão original: reinicia apenas a seleção da jogada.
+        btnLp = params(size, size, buttonFlags)
         btnLp.x = (8 * density).toInt()
         btnLp.y = (sh * 0.4f).toInt()
-        val b = TextView(this).apply {
-            text = "MIRA"
-            textSize = 11f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#CC111111"))
-                setStroke((2 * density).toInt(), Color.WHITE)
-            }
-        }
-        var sx = 0f; var sy = 0f; var bx = 0; var by = 0; var moved = false
-        b.setOnTouchListener { _, e ->
-            when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { sx = e.rawX; sy = e.rawY; bx = btnLp.x; by = btnLp.y; moved = false }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = e.rawX - sx; val dy = e.rawY - sy
-                    if (!moved && hypot(dx, dy) > 10 * density) moved = true
-                    if (moved) {
-                        btnLp.x = (bx + dx).toInt(); btnLp.y = (by + dy).toInt()
-                        wm.updateViewLayout(b, btnLp)
-                    }
-                }
-                MotionEvent.ACTION_UP -> if (!moved) newShot()
-            }
-            true
-        }
+        val b = createFloatingButton("MIRA", Color.WHITE)
+        attachFloatingButton(b, btnLp) { newShot() }
         button = b
         wm.addView(b, btnLp)
 
+        // Novo botão independente: permite recalibrar sem abrir o aplicativo.
+        val calSize = (48 * density).toInt()
+        val calLp = params(calSize, calSize, buttonFlags)
+        calLp.x = btnLp.x
+        calLp.y = btnLp.y + size + (8 * density).toInt()
+        val cb = createFloatingButton("CAL", Color.parseColor("#FFB347"))
+        attachFloatingButton(cb, calLp) { startCalibration() }
+        calibrateButton = cb
+        wm.addView(cb, calLp)
+
         if (pockets.size < 6 || ballR <= 0f) startCalibration() else setMode(Mode.CUE)
+    }
+
+    private fun createFloatingButton(label: String, accent: Int) = TextView(this).apply {
+        text = label
+        textSize = 11f
+        setTextColor(Color.WHITE)
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor("#E6111111"))
+            setStroke((2 * density).toInt(), accent)
+        }
+        contentDescription = if (label == "CAL") "Recalibrar caçapas" else "Nova jogada"
+    }
+
+    private fun attachFloatingButton(
+        view: TextView,
+        lp: WindowManager.LayoutParams,
+        onClick: () -> Unit
+    ) {
+        var sx = 0f
+        var sy = 0f
+        var bx = 0
+        var by = 0
+        var moved = false
+
+        view.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    sx = e.rawX
+                    sy = e.rawY
+                    bx = lp.x
+                    by = lp.y
+                    moved = false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = e.rawX - sx
+                    val dy = e.rawY - sy
+                    if (!moved && hypot(dx, dy) > 10 * density) moved = true
+                    if (moved) {
+                        lp.x = (bx + dx).toInt()
+                        lp.y = (by + dy).toInt()
+                        try { wm.updateViewLayout(view, lp) } catch (_: Exception) {}
+                    }
+                }
+                MotionEvent.ACTION_UP -> if (!moved) onClick()
+                MotionEvent.ACTION_CANCEL -> moved = true
+            }
+            true
+        }
     }
 
     private fun setMode(m: Mode) {
@@ -190,7 +230,8 @@ class PoolService : Service() {
     override fun onDestroy() {
         canvasView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         button?.let { try { wm.removeView(it) } catch (_: Exception) {} }
-        canvasView = null; button = null
+        calibrateButton?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        canvasView = null; button = null; calibrateButton = null
         super.onDestroy()
     }
 
